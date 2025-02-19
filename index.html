@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chess Game</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #f0f0f0;
+      font-family: Arial, sans-serif;
+    }
+    .chess-board {
+      display: grid;
+      grid-template-columns: repeat(8, 60px);
+      grid-template-rows: repeat(8, 60px);
+      border: 2px solid #333;
+    }
+    .square {
+      width: 60px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+    }
+    .white {
+      background-color: #fff;
+    }
+    .black {
+      background-color: #666;
+    }
+    .piece {
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="chess-board" id="chessBoard"></div>
+
+  <script>
+    const board = [
+      ["r", "n", "b", "q", "k", "b", "n", "r"],
+      ["p", "p", "p", "p", "p", "p", "p", "p"],
+      ["", "", "", "", "", "", "", ""],
+      ["", "", "", "", "", "", "", ""],
+      ["", "", "", "", "", "", "", ""],
+      ["", "", "", "", "", "", "", ""],
+      ["P", "P", "P", "P", "P", "P", "P", "P"],
+      ["R", "N", "B", "Q", "K", "B", "N", "R"]
+    ];
+
+    const pieceSymbols = {
+      "p": "♟", "r": "♜", "n": "♞", "b": "♝", "q": "♛", "k": "♚",
+      "P": "♙", "R": "♖", "N": "♘", "B": "♗", "Q": "♕", "K": "♔"
+    };
+
+    let selectedPiece = null;
+    let selectedPosition = null;
+    let playerTurn = true;
+
+    function renderBoard() {
+      const chessBoard = document.getElementById("chessBoard");
+      chessBoard.innerHTML = "";
+      for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+          const square = document.createElement("div");
+          square.classList.add("square", (row + col) % 2 === 0 ? "white" : "black");
+          square.dataset.row = row;
+          square.dataset.col = col;
+
+          const piece = board[row][col];
+          if (piece) {
+            const pieceElement = document.createElement("span");
+            pieceElement.textContent = pieceSymbols[piece];
+            pieceElement.classList.add("piece");
+            square.appendChild(pieceElement);
+          }
+
+          square.addEventListener("click", () => handleSquareClick(row, col));
+          chessBoard.appendChild(square);
+        }
+      }
+    }
+
+    function handleSquareClick(row, col) {
+      if (!playerTurn) return;
+      if (selectedPiece) {
+        if (isValidMove(selectedPiece, selectedPosition, { row, col })) {
+          movePiece(row, col);
+        } else {
+          selectedPiece = null;
+          selectedPosition = null;
+        }
+      } else {
+        selectPiece(row, col);
+      }
+    }
+
+    function selectPiece(row, col) {
+      if (board[row][col] && board[row][col] === board[row][col].toUpperCase()) {
+        selectedPiece = board[row][col];
+        selectedPosition = { row, col };
+      }
+    }
+
+    function movePiece(row, col) {
+      if (selectedPiece) {
+        board[row][col] = selectedPiece;
+        board[selectedPosition.row][selectedPosition.col] = "";
+        selectedPiece = null;
+        selectedPosition = null;
+        playerTurn = false;
+        renderBoard();
+        setTimeout(computerMove, 500);
+      }
+    }
+
+    function isValidMove(piece, from, to) {
+      const rowDiff = Math.abs(from.row - to.row);
+      const colDiff = Math.abs(from.col - to.col);
+
+      switch (piece.toLowerCase()) {
+        case "p":
+          return validatePawnMove(piece, from, to);
+        case "r":
+          return validateRookMove(from, to);
+        case "n":
+          return rowDiff === 2 && colDiff === 1 || rowDiff === 1 && colDiff === 2;
+        case "b":
+          return rowDiff === colDiff;
+        case "q":
+          return validateRookMove(from, to) || rowDiff === colDiff;
+        case "k":
+          return rowDiff <= 1 && colDiff <= 1;
+        default:
+          return false;
+      }
+    }
+
+    function validatePawnMove(piece, from, to) {
+      const direction = piece === "P" ? -1 : 1;
+      const startRow = piece === "P" ? 6 : 1;
+
+      if (from.col === to.col && board[to.row][to.col] === "") {
+        if (from.row + direction === to.row) return true;
+        if (from.row === startRow && from.row + 2 * direction === to.row) return true;
+      }
+
+      if (Math.abs(from.col - to.col) === 1 && from.row + direction === to.row && board[to.row][to.col]) {
+        return true;
+      }
+
+      return false;
+    }
+
+    function validateRookMove(from, to) {
+      if (from.row !== to.row && from.col !== to.col) return false;
+      const rowStep = from.row < to.row ? 1 : from.row > to.row ? -1 : 0;
+      const colStep = from.col < to.col ? 1 : from.col > to.col ? -1 : 0;
+      let r = from.row + rowStep;
+      let c = from.col + colStep;
+      while (r !== to.row || c !== to.col) {
+        if (board[r][c] !== "") return false;
+        r += rowStep;
+        c += colStep;
+      }
+      return true;
+    }
+
+    function computerMove() {
+      let possibleMoves = [];
+      for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+          if (board[row][col] && board[row][col] === board[row][col].toLowerCase()) {
+            for (let r = 0; r < 8; r++) {
+              for (let c = 0; c < 8; c++) {
+                if (isValidMove(board[row][col], { row, col }, { row: r, col: c })) {
+                  possibleMoves.push({ from: { row, col }, to: { row: r, col: c } });
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (possibleMoves.length > 0) {
+        const move = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+        board[move.to.row][move.to.col] = board[move.from.row][move.from.col];
+        board[move.from.row][move.from.col] = "";
+      }
+
+      playerTurn = true;
+      renderBoard();
+    }
+
+    renderBoard();
+  </script>
+</body>
+</html>
